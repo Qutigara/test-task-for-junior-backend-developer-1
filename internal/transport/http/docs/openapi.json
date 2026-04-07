@@ -153,22 +153,58 @@
       }
     },
     "schemas": {
+      "Recurrence": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["none", "daily", "monthly", "specific_dates", "even_days", "odd_days"],
+            "description": "Тип периодичности задачи",
+            "example": "daily"
+          },
+          "interval": {
+            "type": "integer",
+            "description": "Интервал для daily (каждый n-й день)",
+            "example": 3,
+            "minimum": 1
+          },
+          "day_of_month": {
+            "type": "integer",
+            "description": "День месяца для monthly (1-30)",
+            "example": 15,
+            "minimum": 1,
+            "maximum": 30
+          },
+          "specific_dates": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Конкретные даты для specific_dates (формат YYYY-MM-DD)",
+            "example": ["2026-04-30", "2026-05-31"]
+          }
+        }
+      },
       "CreateTaskRequest": {
         "type": "object",
         "required": ["title"],
         "properties": {
           "title": {
             "type": "string",
-            "example": "Prepare release"
+            "example": "Подготовка релиза"
           },
           "description": {
             "type": "string",
-            "example": "Collect release notes and check migrations"
+            "example": "Собрать заметки к релизу"
           },
           "status": {
             "type": "string",
             "enum": ["new", "in_progress", "done"],
             "example": "new"
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/Recurrence"
           }
         }
       },
@@ -178,16 +214,19 @@
         "properties": {
           "title": {
             "type": "string",
-            "example": "Prepare release"
+            "example": "Подготовка релиза"
           },
           "description": {
             "type": "string",
-            "example": "Collect release notes and check migrations"
+            "example": "Собрать заметки к релизу"
           },
           "status": {
             "type": "string",
             "enum": ["new", "in_progress", "done"],
             "example": "in_progress"
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/Recurrence"
           }
         }
       },
@@ -195,15 +234,18 @@
         "type": "object",
         "properties": {
           "id": { "type": "integer", "format": "int64", "example": 1 },
-          "title": { "type": "string", "example": "Prepare release" },
+          "title": { "type": "string", "example": "Подготовка релиза" },
           "description": {
             "type": "string",
-            "example": "Collect release notes and check migrations"
+            "example": "Собрать заметки к релизу"
           },
           "status": {
             "type": "string",
             "enum": ["new", "in_progress", "done"],
             "example": "new"
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/Recurrence"
           },
           "created_at": {
             "type": "string",

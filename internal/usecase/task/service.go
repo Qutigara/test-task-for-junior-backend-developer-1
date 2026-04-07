@@ -31,6 +31,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*taskdomain.Ta
 		Title:       normalized.Title,
 		Description: normalized.Description,
 		Status:      normalized.Status,
+		Recurrence:  normalized.Recurrence,
 	}
 	now := s.now()
 	model.CreatedAt = now
@@ -67,6 +68,7 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateInput) (*tas
 		Title:       normalized.Title,
 		Description: normalized.Description,
 		Status:      normalized.Status,
+		Recurrence:  normalized.Recurrence,
 		UpdatedAt:   s.now(),
 	}
 
@@ -106,6 +108,10 @@ func validateCreateInput(input CreateInput) (CreateInput, error) {
 		return CreateInput{}, fmt.Errorf("%w: invalid status", ErrInvalidInput)
 	}
 
+	if err := validateRecurrence(input.Recurrence); err != nil {
+		return CreateInput{}, err
+	}
+
 	return input, nil
 }
 
@@ -121,5 +127,66 @@ func validateUpdateInput(input UpdateInput) (UpdateInput, error) {
 		return UpdateInput{}, fmt.Errorf("%w: invalid status", ErrInvalidInput)
 	}
 
+	if err := validateRecurrence(input.Recurrence); err != nil {
+		return UpdateInput{}, err
+	}
+
 	return input, nil
+}
+
+func validateRecurrence(r *taskdomain.Recurrence) error {
+	if r == nil {
+		return nil
+	}
+
+	if !r.Type.Valid() {
+		return fmt.Errorf("%w: invalid recurrence type", ErrInvalidInput)
+	}
+
+	switch r.Type {
+	case taskdomain.RecurrenceTypeDaily:
+		if r.Interval <= 0 {
+			return fmt.Errorf("%w: interval must be positive for daily recurrence", ErrInvalidInput)
+		}
+	case taskdomain.RecurrenceTypeMonthly:
+		if r.DayOfMonth == nil || *r.DayOfMonth < 1 || *r.DayOfMonth > 30 {
+			return fmt.Errorf("%w: day_of_month must be between 1 and 30 for monthly recurrence", ErrInvalidInput)
+		}
+	case taskdomain.RecurrenceTypeSpecificDates:
+		if len(r.SpecificDates) == 0 {
+			return fmt.Errorf("%w: specific_dates required for specific_dates recurrence", ErrInvalidInput)
+		}
+		if err := validateSpecificDates(r.SpecificDates); err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidInput, err)
+		}
+	case taskdomain.RecurrenceTypeEvenDays, taskdomain.RecurrenceTypeOddDays:
+		// no additional validation needed
+	case taskdomain.RecurrenceTypeNone:
+		// no additional validation needed
+	}
+
+	return nil
+}
+
+func validateSpecificDates(dates []string) error {
+	layout := "2006-01-02"
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+
+	for _, dateStr := range dates {
+		dateStr = strings.TrimSpace(dateStr)
+		if dateStr == "" {
+			return fmt.Errorf("specific_dates contains empty date")
+		}
+
+		parsedDate, err := time.Parse(layout, dateStr)
+		if err != nil {
+			return fmt.Errorf("invalid date format '%s', expected YYYY-MM-DD", dateStr)
+		}
+
+		if parsedDate.Before(today) {
+			return fmt.Errorf("date '%s' is in the past", dateStr)
+		}
+	}
+
+	return nil
 }
